@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.log
+
+# Backup files
+*~
+*.swp
+
+# Output and temp
+*.zip
+output/
+.env
