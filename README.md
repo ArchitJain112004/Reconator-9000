@@ -1,6 +1,28 @@
-# Reconator
+# 🔎 Reconator-9000
 
-Reconator is a simple bash + Python tool for recon on a target domain. It performs:
+Reconator-9000 is a lightweight and beginner-friendly **information gathering** tool for ethical hackers and bug bounty hunters.
+
+It provides both a **command-line interface (CLI)** and a **graphical user interface (GUI)** for maximum flexibility.
+
+---
+
+## 🚀 Features
+
+- Subdomain enumeration
+- Whois lookup
+- DNS record retrieval
+- IP resolution
+- Easily extendable
+- Simple GUI (built with Tkinter)
+
+---
+
+## 🖥️ Usage
+
+### CLI Mode:
+```bash
+python reconator.py <target-domain>
+
 - Subdomain enumeration
 - Nmap scanning
 - HTTP header fetching
