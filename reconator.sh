@@ -1,48 +1,42 @@
 #!/bin/bash
-# Reconator 9000 - Elite Recon Script
+# Reconator 9000 Elite - GUI Frontend
 # Author: Archit
+# Description: PyQt5-based interface for running recon tools using reconator.sh
+# Version: 1.0
+
 
 TARGET=$1
-WORDLIST="/usr/share/wordlists/dirb/common.txt"
-NUCLEI_TEMPLATES="$HOME/nuclei-templates"
-OUTDIR="recon_$TARGET"
-TIMESTAMP=$(date +%F_%T)
+OUTDIR=$2
+shift 2
+TOOLS=("$@")
 
 mkdir -p "$OUTDIR"
 
-echo "[+] Recon started on $TARGET at $TIMESTAMP"
-echo "[+] Output directory: $OUTDIR"
-
-# Subdomain enumeration
-echo "[*] Finding subdomains..."
-subfinder -d "$TARGET" -silent > "$OUTDIR/subdomains.txt"
-
-# Port scanning with service detection
-echo "[*] Running Nmap scan..."
-nmap -sV -T4 "$TARGET" > "$OUTDIR/nmap.txt"
-
-# Header inspection
-echo "[*] Fetching HTTP headers..."
-curl -sI "https://$TARGET" > "$OUTDIR/headers.txt"
-
-# Directory brute-forcing
-echo "[*] Running Gobuster..."
-gobuster dir -u "https://$TARGET" -w "$WORDLIST" -l > "$OUTDIR/dirb.txt"
-
-# JavaScript scraping and secrets discovery
-echo "[*] Scraping JavaScript files..."
-mkdir -p "$OUTDIR/js_files"
-wget -r -l2 -nd -A js "https://$TARGET" -P "$OUTDIR/js_files/" 2>/dev/null
-grep -iE 'key|token|auth|api|secret' "$OUTDIR/js_files"/*.js > "$OUTDIR/js_secrets.txt" 2>/dev/null
-
-# Nuclei vulnerability scanning
-echo "[*] Running nuclei..."
-nuclei -u "https://$TARGET" -t "$NUCLEI_TEMPLATES" -o "$OUTDIR/nuclei.txt"
-
-# Archive discovery
-if command -v waybackurls &>/dev/null; then
-    echo "[*] Pulling Wayback URLs..."
-    echo "$TARGET" | waybackurls > "$OUTDIR/wayback.txt"
-fi
-
-echo "[+] Recon completed! Results stored in $OUTDIR/"
+for tool in "${TOOLS[@]}"; do
+    case "$tool" in
+        subfinder)
+            subfinder -d "$TARGET" -o "$OUTDIR/subfinder.txt"
+            ;;
+        nmap)
+            nmap -T4 -A "$TARGET" -oN "$OUTDIR/nmap_scan.txt"
+            ;;
+        whatweb)
+            whatweb "$TARGET" > "$OUTDIR/whatweb_results.txt"
+            ;;
+        dirb)
+            gobuster dir -u "http://$TARGET" -w /usr/share/wordlists/dirb/common.txt -o "$OUTDIR/directory_scan.txt"
+            ;;
+        traceroute)
+            traceroute "$TARGET" > "$OUTDIR/traceroute.txt"
+            ;;
+        waf)
+            wafw00f "$TARGET" > "$OUTDIR/waf_detection.txt"
+            ;;
+        all)
+            # Optional: run all of the above
+            ;;
+        *)
+            echo "Unknown tool: $tool"
+            ;;
+    esac
+done
