@@ -1,98 +1,131 @@
-import sys
-import os
+from PyQt5 import QtWidgets, QtGui
+from PyQt5.QtWidgets import QFileDialog, QMessageBox, QTextEdit, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QWidget, QApplication
 import subprocess
-from PyQt5.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QTextEdit, QLineEdit, QFileDialog, QMessageBox,
-    QTabWidget, QStatusBar, QMainWindow
-)
-from PyQt5.QtCore import QProcess
+import os
+import sys
 
-class ReconatorMain(QMainWindow):
+class ReconatorApp(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Reconator 9000 Elite 🧠")
-        self.setGeometry(100, 100, 1000, 700)
-        self.process = None
+        self.setWindowTitle("Reconator 9000")
+        self.setGeometry(100, 100, 800, 600)
 
-        # Central widget and layout
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        self.layout = QVBoxLayout()
-        central_widget.setLayout(self.layout)
+        layout = QVBoxLayout()
 
-        # Input layout
-        self.input_layout = QHBoxLayout()
-        self.label = QLabel("Target Domain/IP:")
-        self.input_field = QLineEdit()
-        self.input_field.setPlaceholderText("example.com")
-        self.input_layout.addWidget(self.label)
-        self.input_layout.addWidget(self.input_field)
+        # Executable path
+        self.exe_label = QLabel("Executable Path:")
+        self.exe_input = QLineEdit()
+        self.exe_browse = QPushButton("Browse")
+        self.exe_browse.clicked.connect(self.browse_exe)
 
-        # Tabs for outputs
-        self.tabs = QTabWidget()
-        self.full_recon_tab = QTextEdit()
-        self.full_recon_tab.setReadOnly(True)
-        self.tabs.addTab(self.full_recon_tab, "Full Recon")
+        exe_layout = QHBoxLayout()
+        exe_layout.addWidget(self.exe_label)
+        exe_layout.addWidget(self.exe_input)
+        exe_layout.addWidget(self.exe_browse)
+        layout.addLayout(exe_layout)
 
-        # Buttons layout
-        self.buttons_layout = QHBoxLayout()
-        self.run_button = QPushButton("\ud83d\udd25 Run Full Recon")
-        self.run_button.clicked.connect(self.run_recon_script)
-        self.clear_button = QPushButton("\ud83e\uddf9 Clear Output")
-        self.clear_button.clicked.connect(self.clear_output)
-        self.buttons_layout.addWidget(self.run_button)
-        self.buttons_layout.addWidget(self.clear_button)
+        # Input file path
+        self.file_label = QLabel("Input File:")
+        self.file_input = QLineEdit()
+        self.file_browse = QPushButton("Browse")
+        self.file_browse.clicked.connect(self.browse_file)
 
-        # Status Bar
-        self.status_bar = QStatusBar()
-        self.setStatusBar(self.status_bar)
+        file_layout = QHBoxLayout()
+        file_layout.addWidget(self.file_label)
+        file_layout.addWidget(self.file_input)
+        file_layout.addWidget(self.file_browse)
+        layout.addLayout(file_layout)
 
-        # Combine layouts
-        self.layout.addLayout(self.input_layout)
-        self.layout.addLayout(self.buttons_layout)
-        self.layout.addWidget(self.tabs)
+        # Output folder path
+        self.folder_label = QLabel("Output Folder:")
+        self.folder_input = QLineEdit()
+        self.folder_browse = QPushButton("Browse")
+        self.folder_browse.clicked.connect(self.browse_folder)
 
-    def run_recon_script(self):
-        target = self.input_field.text().strip()
-        if not target:
-            QMessageBox.warning(self, "Input Error", "Please enter a target domain or IP.")
+        folder_layout = QHBoxLayout()
+        folder_layout.addWidget(self.folder_label)
+        folder_layout.addWidget(self.folder_input)
+        folder_layout.addWidget(self.folder_browse)
+        layout.addLayout(folder_layout)
+
+        # Run button
+        self.run_button = QPushButton("Run")
+        self.run_button.clicked.connect(self.run_executable)
+        layout.addWidget(self.run_button)
+
+        # Output log
+        self.output_label = QLabel("Log Output:")
+        self.output_box = QTextEdit()
+        self.output_box.setReadOnly(True)
+
+        layout.addWidget(self.output_label)
+        layout.addWidget(self.output_box)
+
+        # Export button
+        self.export_button = QPushButton("Export Log")
+        self.export_button.clicked.connect(self.export_log)
+        layout.addWidget(self.export_button)
+
+        self.setLayout(layout)
+
+    def browse_exe(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Select Executable")
+        if path:
+            self.exe_input.setText(path)
+
+    def browse_file(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Select Input File")
+        if path:
+            self.file_input.setText(path)
+
+    def browse_folder(self):
+        path = QFileDialog.getExistingDirectory(self, "Select Output Folder")
+        if path:
+            self.folder_input.setText(path)
+
+    def run_executable(self):
+        exe_path = self.exe_input.text()
+        file_path = self.file_input.text()
+        folder_path = self.folder_input.text()
+
+        if not os.path.isfile(exe_path):
+            self.output_box.append("[Error] Executable path is invalid!")
             return
 
-        script_path = os.path.join(os.getcwd(), "reconator.sh")
-        if not os.path.exists(script_path):
-            QMessageBox.critical(self, "Script Missing", "The reconator.sh script was not found.")
+        if not os.path.isfile(file_path):
+            self.output_box.append("[Error] Input file path is invalid!")
             return
 
-        self.full_recon_tab.clear()
-        self.status_bar.showMessage(f"Running recon on: {target}...")
+        if not os.path.isdir(folder_path):
+            self.output_box.append("[Error] Output folder path is invalid!")
+            return
 
-        self.process = QProcess(self)
-        self.process.setProgram("bash")
-        self.process.setArguments([script_path, target])
-        self.process.readyReadStandardOutput.connect(self.handle_output)
-        self.process.readyReadStandardError.connect(self.handle_error)
-        self.process.finished.connect(self.recon_finished)
-        self.process.start()
+        try:
+            command = [exe_path, file_path, folder_path]
+            result = subprocess.run(command, capture_output=True, text=True)
+            self.output_box.append(f"[Output]\n{result.stdout}")
+            if result.stderr:
+                self.output_box.append(f"[Error]\n{result.stderr}")
+        except Exception as e:
+            self.output_box.append(f"[Exception]\n{str(e)}")
 
-    def handle_output(self):
-        output = self.process.readAllStandardOutput().data().decode()
-        self.full_recon_tab.append(output)
+    def export_log(self):
+        log_content = self.output_box.toPlainText().strip()
+        if not log_content:
+            QMessageBox.information(self, "Export Log", "No log content to export.")
+            return
 
-    def handle_error(self):
-        error = self.process.readAllStandardError().data().decode()
-        self.full_recon_tab.append(f"\n\u274c ERROR: {error}")
+        file_path, _ = QFileDialog.getSaveFileName(self, "Save Log Output As", filter="Text Files (*.txt);;All Files (*)")
+        if file_path:
+            try:
+                with open(file_path, 'w') as f:
+                    f.write(log_content)
+                QMessageBox.information(self, "Export Log", f"Log saved to: {file_path}")
+            except Exception as e:
+                QMessageBox.critical(self, "Export Log", f"Error saving log: {str(e)}")
 
-    def recon_finished(self):
-        self.status_bar.showMessage("Recon Complete.\u2705")
-        self.full_recon_tab.append("\n\u2705 Recon Complete.")
-
-    def clear_output(self):
-        self.full_recon_tab.clear()
-        self.status_bar.clearMessage()
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     app = QApplication(sys.argv)
-    window = ReconatorMain()
+    window = ReconatorApp()
     window.show()
     sys.exit(app.exec_())
