@@ -1,47 +1,33 @@
-# 🔎 Reconator-9000
+🧠 Reconator 9000 GUI – PyQt Edition
+Reconator 9000 is a powerful cybersecurity reconnaissance automation tool with a sleek PyQt GUI. It allows users to easily run recon tools and capture results with minimal hassle. Now with log export capabilities and modular layout, it's your elite recon companion.
 
-Reconator-9000 is a lightweight and beginner-friendly **information gathering** tool for ethical hackers and bug bounty hunters.
+🔧 Features
+🚀 Run any custom recon executable
 
-It provides both a **command-line interface (CLI)** and a **graphical user interface (GUI)** for maximum flexibility.
+📂 Load input files and specify output folders
 
----
+📜 View live logs in real-time
 
-## 🚀 Features
+💾 Export log output to .txt
 
-- Subdomain enumeration
-- Whois lookup
-- DNS record retrieval
-- IP resolution
-- Easily extendable
-- Simple GUI (built with Tkinter)
+📦 Cross-platform GUI using PyQt5
 
----
+🔜 Upcoming: PDF export, tabs, dark mode, tool-by-tool modular execution, and more!
 
-## 🖥️ Usage
+🖥 Requirements
+Python 3.6+
 
-### CLI Mode:
-```bash
-python reconator.py <target-domain>
+PyQt5
 
-- Subdomain enumeration
-- Nmap scanning
-- HTTP header fetching
-- Directory brute-forcing
-- JavaScript scraping and secret detection
-- Nuclei vulnerability scan
-- Wayback URL collection (if tool installed)
+Install dependencies:
 
-## Usage
-
-### Bash
-```bash
-bash reconator.sh example.com
-```
-
-### Python GUI
-```bash
-python3 reconator_gui.py
-```
-
-Ensure you have the required tools installed: subfinder, nmap, curl, gobuster, wget, nuclei, waybackurls, etc.
-# Reconator-9000
+bash
+Copy
+Edit
+pip install PyQt5
+🚀 How to Run
+bash
+Copy
+Edit
+python reconator_gui.py
+Make sure your executable and files are accessible from the selected paths.
