@@ -1,87 +1,79 @@
 #!/bin/bash
 
-# Author: Archit Jain
-# Project: Reconator 9000 🚀
+# Author: Archit Jain | Reconator 9000 Elite
+# Purpose: Perform a full recon on a target
 
 TARGET=$1
 WORDLIST="/usr/share/wordlists/dirb/common.txt"
 NUCLEI_TEMPLATES="$HOME/nuclei-templates"
-OUTDIR="recon_$TARGET"
+TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
+OUTDIR="recon_${TARGET}_${TIMESTAMP}"
 
 # Colors
-RED="\033[0;31m"
-GREEN="\033[0;32m"
-YELLOW="\033[1;33m"
-CYAN="\033[0;36m"
-RESET="\033[0m"
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
 
-# Header
-echo -e "${CYAN}╔════════════════════════════╗"
-echo -e "║   Starting Reconator 9000  ║"
-echo -e "╚════════════════════════════╝${RESET}"
-
-# Check for target
-if [ -z "$TARGET" ]; then
-    echo -e "${RED}[!] Usage: $0 <target-domain>${RESET}"
-    exit 1
-fi
-
-mkdir -p "$OUTDIR"
-echo -e "${GREEN}[+] Target: $TARGET"
-echo -e "[+] Output Directory: $OUTDIR${RESET}"
-
-# Function to check if tool exists
+# Tool Check
 check_tool() {
-    if ! command -v "$1" &> /dev/null; then
-        echo -e "${RED}[!] Tool $1 not found! Skipping...${RESET}"
+    if ! command -v $1 &> /dev/null; then
+        echo -e "${RED}[!] Tool $1 is not installed. Skipping...${NC}"
         return 1
     fi
+    return 0
 }
 
-# Subfinder
-check_tool subfinder && {
-    echo -e "${YELLOW}[+] Finding Subdomains...${RESET}"
+# Create output directory
+mkdir -p "$OUTDIR"
+echo -e "${GREEN}[+] Starting Recon on $TARGET${NC}"
+echo "[+] Output Directory: $OUTDIR"
+
+# Subdomain Enumeration
+if check_tool subfinder; then
+    echo -e "${GREEN}[+] Finding Subdomains...${NC}"
     subfinder -d "$TARGET" -silent | tee "$OUTDIR/subdomains.txt"
-}
+fi
 
-# Nmap
-check_tool nmap && {
-    echo -e "${YELLOW}[+] Running Nmap...${RESET}"
+# Nmap Scan
+if check_tool nmap; then
+    echo -e "${GREEN}[+] Running Nmap...${NC}"
     nmap -sV -T4 "$TARGET" | tee "$OUTDIR/nmap.txt"
-}
+fi
 
-# Headers
-check_tool curl && {
-    echo -e "${YELLOW}[+] Fetching Headers...${RESET}"
-    curl -I "https://$TARGET" > "$OUTDIR/headers.txt"
-}
+# HTTP/HTTPS check
+PROTOCOL="https"
+curl --head --silent --fail "$PROTOCOL://$TARGET" > /dev/null || PROTOCOL="http"
 
-# Gobuster
-check_tool gobuster && {
-    echo -e "${YELLOW}[+] Brute-forcing Directories...${RESET}"
-    gobuster dir -u "https://$TARGET" -w "$WORDLIST" -l | tee "$OUTDIR/dirb.txt"
-}
+# Header Fetch
+if check_tool curl; then
+    echo -e "${GREEN}[+] Fetching Headers using $PROTOCOL...${NC}"
+    curl -I "$PROTOCOL://$TARGET" > "$OUTDIR/headers.txt"
+fi
 
-# JS File Scraping
-check_tool wget && {
-    echo -e "${YELLOW}[+] Scraping JavaScript Files...${RESET}"
+# Directory Brute Force
+if check_tool gobuster; then
+    echo -e "${GREEN}[+] Brute-forcing directories...${NC}"
+    gobuster dir -u "$PROTOCOL://$TARGET" -w "$WORDLIST" -l | tee "$OUTDIR/dirb.txt"
+fi
+
+# JS Scraping
+if check_tool wget; then
+    echo -e "${GREEN}[+] Scraping JS files...${NC}"
     mkdir -p "$OUTDIR/js_files"
-    wget -r -l2 -nd -A js "https://$TARGET" -P "$OUTDIR/js_files/" 2>/dev/null
+    wget -r -l2 -nd -A js "$PROTOCOL://$TARGET" -P "$OUTDIR/js_files/" 2>/dev/null
     grep -iE 'key|token|auth|api|secret' "$OUTDIR/js_files/"*.js > "$OUTDIR/js_secrets.txt" 2>/dev/null
-}
+fi
 
-# Nuclei
-check_tool nuclei && {
-    echo -e "${YELLOW}[+] Running Nuclei Scan...${RESET}"
-    nuclei -u "https://$TARGET" -t "$NUCLEI_TEMPLATES" -o "$OUTDIR/nuclei.txt"
-}
+# Nuclei Scan
+if check_tool nuclei; then
+    echo -e "${GREEN}[+] Running Nuclei Scan...${NC}"
+    nuclei -u "$PROTOCOL://$TARGET" -t "$NUCLEI_TEMPLATES" -o "$OUTDIR/nuclei.txt"
+fi
 
-# Waybackurls
-check_tool waybackurls && {
-    echo -e "${YELLOW}[+] Pulling Wayback URLs...${RESET}"
+# Wayback URLs
+if check_tool waybackurls; then
+    echo -e "${GREEN}[+] Pulling Wayback URLs...${NC}"
     echo "$TARGET" | waybackurls > "$OUTDIR/wayback.txt"
-}
+fi
 
-echo -e "${GREEN}[✓] Recon Complete!"
-echo -e "[✓] All results saved in $OUTDIR/"
-echo -e "[✓] Time: $(date)${RESET}"
+echo -e "${GREEN}[+] Recon Complete! All results saved in $OUTDIR/${NC}"
