@@ -1,131 +1,215 @@
-from PyQt5 import QtWidgets, QtGui
-from PyQt5.QtWidgets import QFileDialog, QMessageBox, QTextEdit, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QWidget, QApplication
-import subprocess
-import os
 import sys
+import os
+import shutil
+import subprocess
+from PyQt5.QtWidgets import (
+    QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit,
+    QPushButton, QFileDialog, QListWidget, QHBoxLayout,
+    QMessageBox, QTextEdit, QTabWidget
+)
 
-class ReconatorApp(QWidget):
-    def __init__(self):
-        super().__init__()
+class ReconatorGUI(QWidget):
+    def _init_(self):
+        super()._init_()
         self.setWindowTitle("Reconator 9000")
-        self.setGeometry(100, 100, 800, 600)
+        self.setGeometry(100, 100, 700, 550)
 
+        self.tabs = QTabWidget()
+        self.recon_tab = QWidget()
+        self.tools_info_tab = QWidget()
+        self.about_tab = QWidget()
+
+        self.tabs.addTab(self.recon_tab, "Recon")
+        self.tabs.addTab(self.tools_info_tab, "Tools Info")
+        self.tabs.addTab(self.about_tab, "About Us")
+
+        self.init_recon_tab()
+        self.init_tools_info_tab()
+        self.init_about_tab()
+
+        self.layout = QVBoxLayout()
+        self.layout.addWidget(self.tabs)
+        self.setLayout(self.layout)
+
+        self.check_installed_tools()
+
+    def init_recon_tab(self):
         layout = QVBoxLayout()
 
-        # Executable path
-        self.exe_label = QLabel("Executable Path:")
-        self.exe_input = QLineEdit()
-        self.exe_browse = QPushButton("Browse")
-        self.exe_browse.clicked.connect(self.browse_exe)
+        self.domain_label = QLabel("Target Domain/IP:")
+        self.domain_input = QLineEdit()
 
-        exe_layout = QHBoxLayout()
-        exe_layout.addWidget(self.exe_label)
-        exe_layout.addWidget(self.exe_input)
-        exe_layout.addWidget(self.exe_browse)
-        layout.addLayout(exe_layout)
+        self.outdir_label = QLabel("Output Folder:")
+        self.outdir_input = QLineEdit()
+        self.outdir_browse = QPushButton("Browse")
+        self.outdir_browse.clicked.connect(self.browse_folder)
 
-        # Input file path
-        self.file_label = QLabel("Input File:")
-        self.file_input = QLineEdit()
-        self.file_browse = QPushButton("Browse")
-        self.file_browse.clicked.connect(self.browse_file)
+        outdir_layout = QHBoxLayout()
+        outdir_layout.addWidget(self.outdir_input)
+        outdir_layout.addWidget(self.outdir_browse)
 
-        file_layout = QHBoxLayout()
-        file_layout.addWidget(self.file_label)
-        file_layout.addWidget(self.file_input)
-        file_layout.addWidget(self.file_browse)
-        layout.addLayout(file_layout)
+        self.tools_label = QLabel("Select Tools:")
+        self.tools_list = QListWidget()
+        self.tools_list.setSelectionMode(QListWidget.MultiSelection)
+        tools = ["subfinder", "nmap", "whatweb", "dirb", "traceroute", "waf", "copylog"]
+        self.tools_list.addItems(tools)
 
-        # Output folder path
-        self.folder_label = QLabel("Output Folder:")
-        self.folder_input = QLineEdit()
-        self.folder_browse = QPushButton("Browse")
-        self.folder_browse.clicked.connect(self.browse_folder)
+        self.run_button = QPushButton("Run Selected Tools")
+        self.run_button.clicked.connect(self.run_tools)
 
-        folder_layout = QHBoxLayout()
-        folder_layout.addWidget(self.folder_label)
-        folder_layout.addWidget(self.folder_input)
-        folder_layout.addWidget(self.folder_browse)
-        layout.addLayout(folder_layout)
+        self.status_label = QLabel("Status:")
+        self.status_output = QTextEdit()
+        self.status_output.setReadOnly(True)
 
-        # Run button
-        self.run_button = QPushButton("Run")
-        self.run_button.clicked.connect(self.run_executable)
+        layout.addWidget(self.domain_label)
+        layout.addWidget(self.domain_input)
+        layout.addWidget(self.outdir_label)
+        layout.addLayout(outdir_layout)
+        layout.addWidget(self.tools_label)
+        layout.addWidget(self.tools_list)
         layout.addWidget(self.run_button)
+        layout.addWidget(self.status_label)
+        layout.addWidget(self.status_output)
 
-        # Output log
-        self.output_label = QLabel("Log Output:")
-        self.output_box = QTextEdit()
-        self.output_box.setReadOnly(True)
+        self.recon_tab.setLayout(layout)
 
-        layout.addWidget(self.output_label)
-        layout.addWidget(self.output_box)
+    def init_tools_info_tab(self):
+        layout = QVBoxLayout()
+        info = QTextEdit()
+        info.setReadOnly(True)
+        info.setText(
+            """
+🛠 Tool: subfinder
+🔹 Desc: Subdomain discovery tool
+🔗 Read More: https://github.com/projectdiscovery/subfinder
 
-        # Export button
-        self.export_button = QPushButton("Export Log")
-        self.export_button.clicked.connect(self.export_log)
-        layout.addWidget(self.export_button)
+🛠 Tool: nmap
+🔹 Desc: Network scanning and enumeration
+🔗 Read More: https://nmap.org/book/inst-windows.html
 
-        self.setLayout(layout)
+🛠 Tool: whatweb
+🔹 Desc: Identify technologies used by websites
+🔗 Read More: https://github.com/urbanadventurer/WhatWeb
 
-    def browse_exe(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Select Executable")
-        if path:
-            self.exe_input.setText(path)
+🛠 Tool: gobuster (dirb)
+🔹 Desc: Directory brute-forcing tool
+🔗 Read More: https://github.com/OJ/gobuster
 
-    def browse_file(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Select Input File")
-        if path:
-            self.file_input.setText(path)
+🛠 Tool: traceroute
+🔹 Desc: Trace route to host
+🔗 Read More: https://man7.org/linux/man-pages/man8/traceroute.8.html
+
+🛠 Tool: wafw00f
+🔹 Desc: Detect web application firewalls
+🔗 Read More: https://github.com/EnableSecurity/wafw00f
+"""
+        )
+        layout.addWidget(info)
+        self.tools_info_tab.setLayout(layout)
+
+    def init_about_tab(self):
+        layout = QVBoxLayout()
+        about = QTextEdit()
+        about.setReadOnly(True)
+        about.setText(
+            """
+📦 Reconator 9000
+
+Created by: Archit
+Version: 1.0
+
+Description:
+Reconator is a powerful tool that streamlines web reconnaissance by allowing users to select and run popular recon tools from a single interface.
+
+Disclaimer:
+For educational and authorized security testing purposes only.
+Use responsibly.
+
+Coming Soon:
+- Live result view
+- Export to PDF/HTML
+- Plugin support
+"""
+        )
+        layout.addWidget(about)
+        self.about_tab.setLayout(layout)
 
     def browse_folder(self):
-        path = QFileDialog.getExistingDirectory(self, "Select Output Folder")
-        if path:
-            self.folder_input.setText(path)
+        folder = QFileDialog.getExistingDirectory(self, "Select Output Folder")
+        if folder:
+            self.outdir_input.setText(folder)
 
-    def run_executable(self):
-        exe_path = self.exe_input.text()
-        file_path = self.file_input.text()
-        folder_path = self.folder_input.text()
+    def log_status(self, text):
+        self.status_output.append(text)
 
-        if not os.path.isfile(exe_path):
-            self.output_box.append("[Error] Executable path is invalid!")
+    def check_installed_tools(self):
+        tools = {
+            "subfinder": "subfinder",
+            "nmap": "nmap",
+            "whatweb": "whatweb",
+            "dirb": "gobuster",
+            "traceroute": "traceroute",
+            "waf": "wafw00f"
+        }
+        self.status_output.append("[*] Checking installed tools...\n")
+        for display_name, command in tools.items():
+            path = shutil.which(command)
+            if path:
+                self.status_output.append(f"✅ {display_name} is installed at {path}")
+            else:
+                self.status_output.append(f"❌ {display_name} is NOT installed")
+        self.status_output.append("\n")
+
+    def run_tools(self):
+        target = self.domain_input.text()
+        outdir = self.outdir_input.text()
+        selected_items = self.tools_list.selectedItems()
+        tools = [item.text() for item in selected_items]
+
+        if not target or not outdir:
+            QMessageBox.critical(self, "Error", "Please fill in all required fields.")
             return
 
-        if not os.path.isfile(file_path):
-            self.output_box.append("[Error] Input file path is invalid!")
-            return
+        os.makedirs(outdir, exist_ok=True)
 
-        if not os.path.isdir(folder_path):
-            self.output_box.append("[Error] Output folder path is invalid!")
-            return
+        tool_mapping = {
+            "subfinder": "subfinder",
+            "nmap": "nmap",
+            "whatweb": "whatweb",
+            "dirb": "gobuster",
+            "traceroute": "traceroute",
+            "waf": "wafw00f"
+        }
 
-        try:
-            command = [exe_path, file_path, folder_path]
-            result = subprocess.run(command, capture_output=True, text=True)
-            self.output_box.append(f"[Output]\n{result.stdout}")
-            if result.stderr:
-                self.output_box.append(f"[Error]\n{result.stderr}")
-        except Exception as e:
-            self.output_box.append(f"[Exception]\n{str(e)}")
+        for tool in tools:
+            if tool == "copylog":
+                copied_dir = os.path.join("copied_logs")
+                os.makedirs(copied_dir, exist_ok=True)
+                copied = 0
+                for file in os.listdir(outdir):
+                    if file.endswith(".txt"):
+                        src = os.path.join(outdir, file)
+                        dst = os.path.join(copied_dir, file)
+                        subprocess.run(["cp", src, dst])
+                        copied += 1
+                msg = f"[+] Copied {copied} log files to: {copied_dir}"
+                self.log_status(msg)
+                QMessageBox.information(self, "Copied", msg)
+                continue
 
-    def export_log(self):
-        log_content = self.output_box.toPlainText().strip()
-        if not log_content:
-            QMessageBox.information(self, "Export Log", "No log content to export.")
-            return
-
-        file_path, _ = QFileDialog.getSaveFileName(self, "Save Log Output As", filter="Text Files (*.txt);;All Files (*)")
-        if file_path:
+            tool_command = tool_mapping.get(tool, tool)
+            cmd = ["bash", "reconator.sh", target, outdir, tool_command]
             try:
-                with open(file_path, 'w') as f:
-                    f.write(log_content)
-                QMessageBox.information(self, "Export Log", f"Log saved to: {file_path}")
+                self.log_status(f"[*] Running: {tool}")
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                self.log_status(f"[+] Finished: {tool}\n{result.stdout}")
+                if result.stderr:
+                    self.log_status(f"[!] Error ({tool}):\n{result.stderr}")
             except Exception as e:
-                QMessageBox.critical(self, "Export Log", f"Error saving log: {str(e)}")
+                self.log_status(f"[!] Failed to run {tool}: {e}")
 
-if __name__ == '__main__':
+if _name_ == "_main_":
     app = QApplication(sys.argv)
-    window = ReconatorApp()
+    window = ReconatorGUI()
     window.show()
     sys.exit(app.exec_())
