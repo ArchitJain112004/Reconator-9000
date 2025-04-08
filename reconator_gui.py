@@ -1,78 +1,73 @@
-import tkinter as tk
-from tkinter import messagebox, scrolledtext
+import sys
 import subprocess
-import datetime
+from PyQt5.QtWidgets import (QApplication, QWidget, QLabel, QLineEdit, QPushButton,
+                             QTextEdit, QVBoxLayout, QHBoxLayout, QCheckBox, QMessageBox)
 
-# Tool Descriptions
-tool_info = {
-    "whois": "Performs a WHOIS lookup to gather domain ownership and registration info.",
-    "nmap": "Performs port scanning and OS detection on the target.",
-    "dnsrecon": "Performs DNS enumeration to find subdomains and records.",
-    "theHarvester": "Gathers emails, subdomains, and more from public sources."
-}
+class ReconatorGUI(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Reconator 9000 Elite")
+        self.setGeometry(100, 100, 900, 700)
 
-def run_tool(tool, target):
-    if not target:
-        messagebox.showwarning("Input Error", "Please enter a target domain or IP.")
-        return
-    try:
-        command = []
-        if tool == "whois":
-            command = ["whois", target]
-        elif tool == "nmap":
-            command = ["nmap", "-A", target]
-        elif tool == "dnsrecon":
-            command = ["dnsrecon", "-d", target]
-        elif tool == "theHarvester":
-            command = ["theHarvester", "-d", target, "-b", "all"]
+        self.target_input = QLineEdit(self)
+        self.target_input.setPlaceholderText("Enter domain or IP")
 
-        result = subprocess.run(command, capture_output=True, text=True)
-        output_text.insert(tk.END, f"\n[--- {tool.upper()} OUTPUT ---]\n")
-        output_text.insert(tk.END, result.stdout + "\n")
+        self.run_button = QPushButton("Run Selected Tools")
+        self.run_button.clicked.connect(self.run_tools)
 
-        # Save to file with timestamp
-        now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        with open(f"reconator_output_{tool}_{now}.txt", "w") as f:
-            f.write(result.stdout)
+        self.output_text = QTextEdit(self)
+        self.output_text.setReadOnly(True)
 
-    except FileNotFoundError:
-        output_text.insert(tk.END, f"\nError: {tool} not found on this system.\n")
+        self.tools = {
+            "whois": "whois {target}",
+            "nmap": "nmap -A {target}",
+            "dnsrecon": "dnsrecon -d {target}",
+            "theHarvester": "theHarvester -d {target} -b all",
+            "httpx": "httpx -silent -title -status-code -tech-detect -ip -cname -u {target}",
+            "amass": "amass enum -passive -d {target}",
+            "nuclei": "nuclei -u {target}",
+            "waybackurls": "bash -c 'echo {target} | waybackurls'",
+            "whatweb": "whatweb {target}",
+            "nikto": "nikto -host {target}",
+            "sqlmap": "sqlmap -u {target} --batch"
+        }
 
-def show_tool_info(tool):
-    messagebox.showinfo(f"About {tool}", tool_info.get(tool, "No info available."))
+        self.checkboxes = {}
+        checkbox_layout = QVBoxLayout()
+        for tool in self.tools:
+            cb = QCheckBox(tool)
+            self.checkboxes[tool] = cb
+            checkbox_layout.addWidget(cb)
 
-def run_all():
-    for tool in tool_info:
-        run_tool(tool, entry.get())
+        layout = QVBoxLayout()
+        layout.addWidget(QLabel("Target:"))
+        layout.addWidget(self.target_input)
+        layout.addLayout(checkbox_layout)
+        layout.addWidget(self.run_button)
+        layout.addWidget(self.output_text)
 
-def clear_output():
-    output_text.delete('1.0', tk.END)
+        self.setLayout(layout)
 
-# GUI Setup
-root = tk.Tk()
-root.title("Reconator 9000")
-root.geometry("800x600")
+    def run_tools(self):
+        target = self.target_input.text().strip()
+        if not target:
+            QMessageBox.warning(self, "Input Error", "Please enter a valid target.")
+            return
 
-frame = tk.Frame(root)
-frame.pack(pady=10)
+        for tool, cb in self.checkboxes.items():
+            if cb.isChecked():
+                cmd = self.tools[tool].format(target=target)
+                self.output_text.append(f"\n[--- Running {tool} ---]\n")
+                try:
+                    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                    self.output_text.append(result.stdout)
+                    if result.stderr:
+                        self.output_text.append(f"[stderr]\n{result.stderr}")
+                except Exception as e:
+                    self.output_text.append(f"Error running {tool}: {e}")
 
-label = tk.Label(frame, text="Enter Target Domain/IP:")
-label.grid(row=0, column=0, padx=5)
-
-entry = tk.Entry(frame, width=40)
-entry.grid(row=0, column=1, padx=5)
-
-button_frame = tk.Frame(root)
-button_frame.pack(pady=10)
-
-for i, tool in enumerate(tool_info):
-    tk.Button(button_frame, text=f"Run {tool}", width=15, command=lambda t=tool: run_tool(t, entry.get())).grid(row=0, column=i)
-    tk.Button(button_frame, text=f"Info {tool}", width=15, command=lambda t=tool: show_tool_info(t)).grid(row=1, column=i)
-
-tk.Button(root, text="Run All Tools", command=run_all, bg='green', fg='white').pack(pady=5)
-tk.Button(root, text="Clear Output", command=clear_output).pack(pady=5)
-
-output_text = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=100, height=25)
-output_text.pack(padx=10, pady=10)
-
-root.mainloop()
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    gui = ReconatorGUI()
+    gui.show()
+    sys.exit(app.exec_())
